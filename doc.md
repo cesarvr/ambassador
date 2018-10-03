@@ -1,6 +1,6 @@
 # First
 
-Now I want to check the content that comes from the outside, let see whats comming back, we're going to achieve this by creating an adaptor that scan the data and pass it back to the socket. 
+Now I want to check the content that comes from the outside, let see whats comming back, we're going to achieve this by creating an adaptor that scan the data and pass it back to the socket.
 
 ```js
 function process(data) {
@@ -13,14 +13,14 @@ socket.on('data', (data) => this.client.write(process(data)))
 
 ```
 
-```sh 
+```sh
 GET /fire_1/ HTTP/1.1
 Host: localhost:8088
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:62.0) Gecko/20100101 Firefox/62.0
 Connection: keep-alive
 ...
 ```
-To create the visitors counter I need too bookeep the browser request for the URL just want to keep GET request, so I going to create a rudimentary counter. 
+To create the visitors counter I need too bookeep the browser request for the URL just want to keep GET request, so I going to create a rudimentary counter.
 
 ```js
 function process(data) {
@@ -33,7 +33,7 @@ function process(data) {
 ```
 
 
-I just wanted to hide the complexity of proxying and socket behind the class tunel which implement to method that we can to handle the outcomming/incomming traffic, look at the example. 
+I just wanted to hide the complexity of proxying and socket behind the class tunel which implement to method that we can to handle the outcomming/incomming traffic, look at the example.
 
 
 ```js
@@ -45,10 +45,10 @@ net.createServer(function (socket) {
   let registry = new Registry()
 
   let tunel = new Tunel({port: 8087})
-  tunel.incoming = function(o){ 
-    console.log('out->' , o.toString()) 
+  tunel.incoming = function(o){
+    console.log('out->' , o.toString())
     return o
-  } 
+  }
 
   tunel.setup({socket})
 
@@ -56,16 +56,16 @@ net.createServer(function (socket) {
 
 ```
 
-Now let handle the incomming traffic by encapsulating the two behaviours we want in to classes, we want to *parse* and *cache* the amount of time our endpoint is being called. 
+Now let handle the incomming traffic by encapsulating the two behaviours we want in to classes, we want to *parse* and *cache* the amount of time our endpoint is being called.
 
 
 ```js
 function Cache(){
   let endpoints = []
 
-  return{ 
+  return{
     save: function(url){
-      if(endpoints[url] !== undefined) 
+      if(endpoints[url] !== undefined)
         endpoints[url] += 1
       else
         endpoints[url] = 1
@@ -77,10 +77,10 @@ function Cache(){
 }
 ```
 
-This class will do the job of keeping the count of how many times the endpoint is being called. 
+This class will do the job of keeping the count of how many times the endpoint is being called.
 
 
-## Parse 
+## Parse
 
 ```js
 class Parse {
@@ -112,20 +112,20 @@ class Parse {
 ```
 
 
-Using this stuff you can implement a configurable circuit breaker, this way you never need to mix business logic with all this stuff. 
+Using this stuff you can implement a configurable circuit breaker, this way you never need to mix business logic with all this stuff.
 
 
 
 
-Let's print our statistics in the console: 
+Let's print our statistics in the console:
 
 
-```js 
-
+```js
 console.log('listening 8080...')
 
 let parse = new Parse()
 setInterval(()=>{ console.log("cache: ",parse.cache.all())}, 2000 )
+
 net.createServer(function (socket) {
   console.log('new connection!')
 
@@ -141,18 +141,35 @@ net.createServer(function (socket) {
 
 
 
-I got here almost what I wanted but I'm not satisfied lets write a small dashboard to control our gather this information in a civilize way. 
+I got here almost what I wanted but I'm not satisfied lets write a small dashboard to control our gather this information in a civilize way.
 
 
 
 
+# Implementation
 
+We need to put this application inside a container first, I'll use a BuildConfig to do this:  
 
+```sh
+oc new-build nodejs~https://github.com/cesarvr/ambassador --name=ambassador
 
+oc logs -f bc/ambassador
+Cloning "https://github.com/cesarvr/ambassador" ...
+	Commit:	014567aa091d48b25e59bb97c6fe6e5ba3827779 (initial)
+...
+Pulling image
+...
+Pushing image docker-registry.default.svc:5000/web-apps/ambassador:latest ...
+Pushed 2/6 layers, 34% complete
+...
+...
+Pushed 6/6 layers, 100% complete
+Push successful
 
+```
 
+This will create a container named ambassador ready to be deployed. Now the only thing left is to put the ambassador container in front of our dumb Python server to do that we need to make some changes to the original template. 
 
+```yml
 
-
-
-
+```

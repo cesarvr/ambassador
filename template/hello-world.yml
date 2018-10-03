@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: python-pod
+  labels:
+    app: python
+spec:
+  containers:
+  - name: python
+    image: python
+    command: ["sh", "-c", "cd /tmp/ && git clone https://github.com/cesarvr/demos-webgl demos && cd demos/static/ && python -m http.server 8087"]
+    ports:
+    - containerPort: 8087
+  - name: sidecar   
+    image: docker-registry.default.svc:5000/openshift/nodejs 
+    command: ["sh", "-c", "curl -L https://github.com/cesarvr/side-container/archive/master.zip -o m.zip && unzip m.zip && cd side-container-master/cpp/ &&  make && ./server"]
+    ports:
+    - containerPort: 8080

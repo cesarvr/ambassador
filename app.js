@@ -3,9 +3,9 @@ var net = require('net')
 function Cache(){
   let endpoints = []
 
-  return{ 
+  return{
     save: function(url){
-      if(endpoints[url] !== undefined) 
+      if(endpoints[url] !== undefined)
         endpoints[url] += 1
       else
         endpoints[url] = 1
@@ -47,8 +47,8 @@ class Tunel {
   constructor({port}) {
     const _identity = (a) => { return a }
 
-    this._incoming  = _identity 
-    this._outcoming = _identity 
+    this._incoming  = _identity
+    this._outcoming = _identity
 
     this.client = new net.Socket()
     this.client.connect(port || 8087, '0.0.0.0', function() {
@@ -57,7 +57,7 @@ class Tunel {
   }
 
   setup({socket}) {
-    this.client.on('data', (data) => { 
+    this.client.on('data', (data) => {
       socket.write(this._outcoming(data) )
     })
 
@@ -66,11 +66,11 @@ class Tunel {
   }
 
   set incoming(fn) {
-    this._incoming = fn   
-  } 
+    this._incoming = fn
+  }
 
   set outcoming(fn) {
-    this._outcoming = fn   
+    this._outcoming = fn
   }
 }
 
@@ -78,6 +78,7 @@ console.log('listening 8080...')
 
 let parse = new Parse()
 setInterval(()=>{ console.log("cache: ",parse.cache.all())}, 2000 )
+
 net.createServer(function (socket) {
   console.log('new connection!')
 
@@ -88,4 +89,3 @@ net.createServer(function (socket) {
   tunel.setup({socket})
 
 }).listen(8080)
-
