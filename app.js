@@ -1,7 +1,6 @@
 var net = require('net')
 
 
-let _error = (err) => console.log('client error: ', err)
 
 function Cache(){
   let endpoints = []
@@ -59,6 +58,10 @@ class Tunel {
     })
   }
 
+  subscribeForErrors(socket, identifier){
+    socket.on(error, (error) => console.log(`from: ${identifier}  message: ${error}`))
+  }
+
   setup({originSocket}) {
     this.destinationSocket.on('data', (data) => {
       originSocket.write(this._outcoming(data) )
@@ -66,8 +69,8 @@ class Tunel {
 
     originSocket.on('data', (data) => this.destinationSocket.write(this._incoming(data)))
     originSocket.on('end', this.closeConnections.bind(this))
-    this.destinationSocket.on('error', _error)
-    originSocket.on('error', _error)
+    this.subscribeForErrors(this.destinationSocket, 'client:8087')
+    this.subscribeForErrors(originSocket, 'server:8080')
     this.originSocket = originSocket
   }
 
