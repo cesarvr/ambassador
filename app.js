@@ -1,7 +1,5 @@
 var net = require('net')
 
-
-
 function Cache(){
   let endpoints = []
 
