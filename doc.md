@@ -168,8 +168,74 @@ Push successful
 
 ```
 
-This will create a container named ambassador ready to be deployed. Now the only thing left is to put the ambassador container in front of our dumb Python server to do that we need to make some changes to the original template. 
+This will create a container named ambassador ready to be deployed. Now the only thing left is to put the ambassador container in front of our dumb Python server to do that we need to make some changes to the original template.
 
 ```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-deployment
+  labels:
+    app: python
+spec:
+  replicas: 1
+```
 
+First I change the type of object we want to create from a simple Pod to a Deployment object, why? well because by setting up a deployment controller we can scale up/down or application, at the moment we just want one replica.
+
+```yml
+      containers:
+      - name: python
+        image: python
+        command: ["sh", "-c", "cd /tmp/ && git clone https://github.com/cesarvr/demos-webgl demos && cd demos/static/ && python -m http.server 8087"]
+        ports:
+        - containerPort: 8087
+```
+
+Also we need to change the port for the web server, we need to give the control of the port 8080 to the ambassador port. If you check the code above the ambassador expect to tunnel the traffic to the port 8087, this can be configurable but let's leave it hardcoded.
+
+```yml
+      - name: sidecar
+        image: docker-registry.default.svc:5000/web-apps/ambassador
+        command: ["sh", "-c", "npm start"]
+        ports:
+        - containerPort: 8080
+```
+
+And the last step is to setup our ambassador application using 8080 as we mention before. Here is the full template.
+
+```yml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: python-deployment
+  labels:
+    app: python
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: python
+  template:
+    metadata:
+      labels:
+        app: python
+    spec:
+      containers:
+      - name: python
+        image: python
+        command: ["sh", "-c", "cd /tmp/ && git clone https://github.com/cesarvr/demos-webgl demos && cd demos/static/ && python -m http.server 8087"]
+        ports:
+        - containerPort: 8087
+      - name: sidecar
+        image: docker-registry.default.svc:5000/web-apps/ambassador
+        command: ["sh", "-c", "npm start"]
+        ports:
+        - containerPort: 8080
+```
+
+We need to load the template:
+
+```sh
+ oc create -f deployable-python-ambassador.yml
 ```

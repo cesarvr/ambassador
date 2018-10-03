@@ -1,5 +1,8 @@
 var net = require('net')
 
+
+let _error = (err) => console.log('client error: ', err)
+
 function Cache(){
   let endpoints = []
 
@@ -62,7 +65,9 @@ class Tunel {
     })
 
     socket.on('data', (data) => this.client.write(this._incoming(data)))
-    this.client.on('end', socket.end)
+    socket.on('end', this.client.end)
+    this.client.on('error', _error)
+    socket.on('error', _error)
   }
 
   set incoming(fn) {
