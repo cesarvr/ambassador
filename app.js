@@ -53,21 +53,28 @@ class Tunel {
     this._incoming  = _identity
     this._outcoming = _identity
 
-    this.client = new net.Socket()
-    this.client.connect(port || 8087, '0.0.0.0', function() {
+    this.destinationSocket = new net.Socket()
+    this.destinationSocket.connect(port || 8087, '0.0.0.0', function() {
       console.log(`connected to ${port}`)
     })
   }
 
-  setup({socket}) {
-    this.client.on('data', (data) => {
-      socket.write(this._outcoming(data) )
+  setup({originSocket}) {
+    this.destinationSocket.on('data', (data) => {
+      originSocket.write(this._outcoming(data) )
     })
 
-    socket.on('data', (data) => this.client.write(this._incoming(data)))
-    //socket.on('end', this.client.end)
-    this.client.on('error', _error)
-    socket.on('error', _error)
+    originSocket.on('data', (data) => this.destinationSocket.write(this._incoming(data)))
+    originSocket.on('end', this.closeConnections.bind(this))
+    this.destinationSocket.on('error', _error)
+    originSocket.on('error', _error)
+    this.originSocket = originSocket
+  }
+
+  closeConnections(){
+    console.log('closing tunnel')
+    this.originSocket.end()
+    this.destinationSocket.end()
   }
 
   set incoming(fn) {
@@ -91,6 +98,6 @@ net.createServer(function (socket) {
 
   tunel.incoming = parse.process.bind(parse)
 
-  tunel.setup({socket})
+  tunel.setup({originSocket: socket})
 
 }).listen(8080)
