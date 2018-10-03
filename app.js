@@ -67,6 +67,8 @@ class Tunel {
 
     originSocket.on('data', (data) => this.destinationSocket.write(this._incoming(data)))
     originSocket.on('end', this.closeConnections.bind(this))
+    originSocket.on('close', this.closeConnections.bind(this))
+
     this.subscribeForErrors(this.destinationSocket, 'client:8087')
     this.subscribeForErrors(originSocket, 'server:8080')
     this.originSocket = originSocket
