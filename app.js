@@ -76,7 +76,6 @@ class Tunel {
 
   closeConnections(){
     console.log('closing tunnel')
-    this.originSocket.end()
     this.destinationSocket.end()
   }
 
@@ -94,7 +93,7 @@ console.log('listening 8080...')
 let parse = new Parse()
 setInterval(()=>{ console.log("cache: ",parse.cache.all())}, 2000 )
 
-net.createServer(function (socket) {
+net.createServer({allowHalfOpen:true}, function (socket) {
   console.log('new connection!')
 
   let tunel = new Tunel({port: 8087})
