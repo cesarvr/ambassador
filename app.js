@@ -59,7 +59,7 @@ class Tunel {
   }
 
   subscribeForErrors(socket, identifier){
-    socket.on(error, (error) => console.log(`from: ${identifier}  message: ${error}`))
+    socket.on(socket, (error) => console.log(`from: ${identifier}  message: ${error}`))
   }
 
   setup({originSocket}) {
