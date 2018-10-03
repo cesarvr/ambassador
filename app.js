@@ -53,7 +53,7 @@ class Tunel {
     this._incoming  = _identity
     this._outcoming = _identity
 
-    this.destinationSocket = new net.Socket()
+    this.destinationSocket = new net.Socket({ allowHalfOpen: true })
     this.destinationSocket.connect(port || 8087, '0.0.0.0', function() {
       console.log(`connected to ${port}`)
     })
