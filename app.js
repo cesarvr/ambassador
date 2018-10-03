@@ -75,6 +75,7 @@ class Tunel {
   closeConnections(){
     console.log('closing tunnel')
     this.destinationSocket.end()
+    this.originSocket.end()
   }
 
   set incoming(fn) {
