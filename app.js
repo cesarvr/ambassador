@@ -65,7 +65,7 @@ class Tunel {
     })
 
     socket.on('data', (data) => this.client.write(this._incoming(data)))
-    socket.on('end', this.client.end)
+    //socket.on('end', this.client.end)
     this.client.on('error', _error)
     socket.on('error', _error)
   }
