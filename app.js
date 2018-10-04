@@ -1,7 +1,27 @@
-var net = require('net')
+let net = require('net')
+let os = require('os')
+let fetch = require('node-fetch')
+
+
+function refresh(payload) {
+
+  let URL = process.env['BEACON_ENDPOINT'] || 'http://localhost:3000/beacon';
+
+  let str  = JSON.stringify(payload)
+  console.log('posting state to: ', URL, str )
+  fetch(URL, { 
+     method: 'POST', 
+       body: str,
+     headers: { 'Content-Type': 'application/json' }
+  })
+    .then(res => res.json())
+    .then(json => console.log('response: ', json))
+    .catch((err)=> console.log('error: ', err))
+}
+
 
 function Cache(){
-  let endpoints = []
+  let endpoints = {}
 
   return{
     save: function(url){
@@ -39,7 +59,7 @@ class Parse {
   }
 
   get cache() {
-    return this._cache
+    return this._cache 
   }
 }
 
@@ -50,14 +70,14 @@ class Tunel {
     this._incoming  = _identity
     this._outcoming = _identity
 
-    this.destinationSocket = new net.Socket({ allowHalfOpen: true })
+    this.destinationSocket = new net.Socket()
     this.destinationSocket.connect(port || 8087, '0.0.0.0', function() {
       console.log(`connected to ${port}`)
     })
   }
 
   subscribeForErrors(socket, identifier){
-    socket.on('error', (error) => console.log(`from: ${identifier}  message: ${error}`))
+    socket.on('error', (error) => console.error(`from: ${identifier}  message: ${error}`))
   }
 
   setup({originSocket}) {
@@ -89,12 +109,24 @@ class Tunel {
   }
 }
 
+function getInfo(stats) {
+  return { hostname: os.hostname(), stats: stats}
+}
+
+
 console.log('listening 8080...')
 
 let parse = new Parse()
-setInterval(()=>{ console.log("cache: ",parse.cache.all())}, 2000 )
 
-net.createServer({allowHalfOpen:true}, function (socket) {
+setInterval(()=>{ 
+  console.log("cache: ", parse.cache.all())
+  let x = parse.cache.all()
+  refresh({ hostname: os.hostname(), stats:x })
+
+  console.log("cache: ", x)
+}, 5000 )
+
+net.createServer( function (socket) {
   console.log('new connection!')
 
   let tunel = new Tunel({port: 8087})

@@ -239,3 +239,38 @@ We need to load the template:
 ```sh
  oc create -f deployable-python-ambassador.yml
 ```
+
+
+# 
+
+
+To comunnicate with the beacon I'll use node-fetch. 
+
+```sh
+npm install node-fetch --save
+```
+
+
+
+
+
+# Adding communications 
+
+
+```yml
+- name: BEACON_ENDPOINT 
+  value: "beacon"
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

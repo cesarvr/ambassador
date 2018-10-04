@@ -36,6 +36,9 @@ spec:
         command: ["sh", "-c", "npm start"]
         ports:
         - containerPort: 8080
+        env:
+        - name: BEACON_ENDPOINT 
+          value: "beacon"
         requests:
           memory: "64Mi"
           cpu: "150m"
