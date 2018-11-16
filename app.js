@@ -1,138 +1,96 @@
-let net = require('net')
-let os = require('os')
-let fetch = require('node-fetch')
+let { Service, Server } =  require('node-ambassador')
+//let { Service, Server } =  require('../ambassador')
 
+const HTTP404 = `
+HTTP/1.0 404 File not found
+Server: Sitio 💥
+Date: ${Date()}
+Content-Type: text/html
+Connection: close
 
-function refresh(payload) {
+<body>
+  <H1>Endpoint Not Found</H1>
+  <img src="https://www.wykop.pl/cdn/c3201142/comment_E6icBQJrg2RCWMVsTm4mA3XdC9yQKIjM.gif">
+</body>`
 
-  let URL = process.env['BEACON_ENDPOINT'] || 'http://localhost:3000/beacon';
+class Stats  {
 
-  let str  = JSON.stringify(payload)
-  console.log('posting state to: ', URL, str )
-  fetch(URL, { 
-     method: 'POST', 
-       body: str,
-     headers: { 'Content-Type': 'application/json' }
-  })
-    .then(res => res.json())
-    .then(json => console.log('response: ', json))
-    .catch((err)=> console.log('error: ', err))
-}
-
-
-function Cache(){
-  let endpoints = {}
-
-  return{
-    save: function(url){
-      if(endpoints[url] !== undefined)
-        endpoints[url] += 1
-      else
-        endpoints[url] = 1
-    },
-    all: function() {
-      return endpoints
-    }
-  }
-}
-
-class Parse {
   constructor(){
-    this._cache = new Cache()
+    this.db = {}
   }
 
-  extractEndPoint(str){
-    return str.replace("GET", "")
-      .replace("HTTP\/1.1","")
-      .trim()
+  getEndPoint(http_block) {
+    let str = http_block.split('\n')[0]
+
+    str = str.split(' ')
+
+    let HTTPMethod   = str[0].trim() // [ GET ] /home HTTP1.1..
+    let HTTPResource = str[1].trim() // GET [ /home ] HTTP1.1..
+
+    return { HTTPMethod, HTTPResource }
   }
 
-  process(data) {
-    let str = data.toString()
-    let http_method = str.split('\n')[0]
+  new_entry(){
+    let key = this.endpoint
+    let entry = undefined
 
-    let endpoint = this.extractEndPoint(http_method)
-    console.log('HTTP->', endpoint)
+    // if the entry doesn't exist, instantiate a new object
+    this.db[key]      =  this.db[key] || {}
 
-    this._cache.save(endpoint)
-    return data
+    entry = this.db[key] // we retrieve the object by reference.
+    entry.hit  = entry.hit || 0
+    entry.avg  = entry.avg || 0
+    entry.total = entry.total || 0
+    entry.history = entry.history || []
+
+    entry.hit += 1
+    entry.total += this.end
+    entry.history.push({time: this.end + 'ms', method:this.method })
+    entry.avg =  Math.round((this.end / entry.hit) * 100) / 100 + 'ms' // truncating
   }
 
-  get cache() {
-    return this._cache 
-  }
-}
+  read(httpHeader){
+    let head = httpHeader.toString()
+    let RequestComponents = this.getEndPoint(head)
 
-class Tunel {
-  constructor({port}) {
-    const _identity = (a) => { return a }
-
-    this._incoming  = _identity
-    this._outcoming = _identity
-
-    this.destinationSocket = new net.Socket()
-    this.destinationSocket.connect(port || 8087, '0.0.0.0', function() {
-      console.log(`connected to ${port}`)
-    })
+    this.method   = RequestComponents.HTTPMethod
+    this.endpoint = RequestComponents.HTTPResource
   }
 
-  subscribeForErrors(socket, identifier){
-    socket.on('error', (error) => console.error(`from: ${identifier}  message: ${error}`))
+  start_profile(){
+    this.start = new Date().getTime()
   }
 
-  setup({originSocket}) {
-    this.destinationSocket.on('data', (data) => {
-      originSocket.write(this._outcoming(data) )
-    })
-
-    originSocket.on('data', (data) => this.destinationSocket.write(this._incoming(data)))
-    originSocket.on('end', this.closeConnections.bind(this))
-    originSocket.on('close', this.closeConnections.bind(this))
-
-    this.subscribeForErrors(this.destinationSocket, 'client:8087')
-    this.subscribeForErrors(originSocket, 'server:8080')
-    this.originSocket = originSocket
+  end_profile() {
+    this.end =  new Date().getTime() - this.start
   }
 
-  closeConnections(){
-    console.log('closing tunnel')
-    this.destinationSocket.end()
-    this.originSocket.end()
-  }
-
-  set incoming(fn) {
-    this._incoming = fn
-  }
-
-  set outcoming(fn) {
-    this._outcoming = fn
+  get all() {
+    return this.db
   }
 }
 
-function getInfo(stats) {
-  return { hostname: os.hostname(), stats: stats}
+let stats = new Stats()
+
+ setInterval(()=> {
+   console.log('logs -> \n ', JSON.stringify(stats.all))
+ }, 5000)
+
+function handleConnection(server) {
+  let service = new Service({port: process.env['PORT'] || 8087})
+/*
+ service.on('service:response:200', response => server.respond(response) )
+  service.on('service:response:404', response => server.respond([HTTP404]) ) */
+
+  server.on('server:traffic', incomingData => stats.read(incomingData))
+  server.on('server:traffic', incomingData => stats.start_profile())
+  service.on('service:response:all', (status, data) => stats.end_profile())
+  service.on('service:response:all', (status, data) => stats.new_entry())
+
+  server.on('server:traffic', incomingData => service.send(incomingData))
+  service.on('service:response:200', response => server.respond(response) )
+  service.on('service:response:404', response => server.respond([HTTP404]) )
 }
 
-
-console.log('listening 8080...')
-
-let parse = new Parse()
-
-setInterval(()=>{ 
-  console.log("cache: ", parse.cache.all())
-  let x = parse.cache.all()
-  refresh({ hostname: os.hostname(), stats:x })
-
-  console.log("cache: ", x)
-}, 5000 )
-
-net.createServer( function (socket) {
-  console.log('new connection!')
-
-  let tunel = new Tunel({port: 8087})
-
-  tunel.incoming = parse.process.bind(parse)
-
-  tunel.setup({originSocket: socket})
-
-}).listen(8080)
+new Server({port: 8080, handler: handleConnection})
+console.log('Listening for request in 8080!!')
