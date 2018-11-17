@@ -1,6 +1,6 @@
 ## Example Ambassador Container 
 
-### How It Work 
+### How It Work 
 
 This project is just an example ambassador container, with the ability to override and to get some telemetry from running services in the same pod. 
  To understand how it works, take a look at this example. 
@@ -14,7 +14,7 @@ Let's say you have a legacy micro-service running in your cluster.
 
 Let's call it ``my-java-app``.
 
-### Ambassador Container
+### Ambassador Container
 
 Let's say we want to override the 404 response of this service and also we want to read some telemetry. We just need to deploy this project in the same pod as the running service, but first we need to create an image. 
 
@@ -44,6 +44,8 @@ containers:
     port: 8080
     ...
 ```
+
+### Direct Traffic
 
 Edit the Service (if necessary) so it redirect the traffic to the proper ports, in my case 8087. 
 
