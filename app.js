@@ -34,26 +34,30 @@ class Stats  {
 
     entry.hit += 1
     entry.total += this.end
-    entry.history.push({time: this.end + 'ms', method:this.method })
+    entry.history.push({time: this.end + 'ms', method:this.method, response: this.response })
     entry.avg =  Math.round((this.end / entry.hit) * 100) / 100 + 'ms' // truncating
   }
 
   readResponse(response){
     this.response = response 
+    return this
   }
 
   readRequest(header){
-    
-    //this.method   = RequestComponents.HTTPMethod
-    //this.endpoint = RequestComponents.HTTPResource
+    this.method   = header.HTTPMethod
+    this.endpoint = header.HTTPResource
+
+    return this
   }
 
   start_profile(){
     this.start = new Date().getTime()
+    return this
   }
 
   end_profile() {
     this.end =  new Date().getTime() - this.start
+    return this
   }
 
   get all() {
@@ -72,25 +76,20 @@ function handleConnection(server) {
   console.log(`Target port: ${tport}`)
   let service = new HTTPService({port: tport })
 
-/*
- service.on('service:response:200', response => server.respond(response) )
-  server.on('server:traffic', data => stats.start_profile())
-  service.on('service:response:all', (status, data) => stats.new_entry())
-  service.on('service:response:all', (status, data) => stats.end_profile())
-  service.on('service:response:all', (status, data) => console.log('service has responded !!'))
+  server.on('server:http:headers',   
+                          (header, data) => stats.readRequest(header)
+                                                 .start_profile() )
 
-  server.on('server:traffic', data => service.send(data))
-  service.on('service:response:200', response => server.respond(response) )
-  service.on('service:response:404', response => server.respond([HTTP404]) )
-  
-  service.on('service:response:404', response => server.respond([HTTP404]) ) */
+  service.on('service:http:headers', (header, data) => 
+                                            stats.readResponse(header,data)
+                                                 .end_profile()
+                                                 .new_entry() )
 
-  server.on('service:http:all', (header, data) => stats.readResponse(header,data))
   service.on('service:http:404', (header, response) => server.respond(HTTP404) ) 
 
-  server.on('http:traffic', data => stats.readRequest()  )
-  server.on('http:traffic', data => service.send(data)   )
-  service.on('service:read',  data => server.send(data) )
+  // Tunnel
+  server.on( 'server:read',  data => service.send(data)   )
+  service.on('service:read', data => server.send(data)    )
 }
 
 
