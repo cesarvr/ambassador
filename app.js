@@ -1,5 +1,5 @@
-let { Service, Server } =  require('node-ambassador')
-//let { Service, Server } =  require('../ambassador')
+let { HTTPService, HTTPServer } =  require('node-ambassador')
+//let { HTTPService, HTTPServer } =  require('../ambassador')
 
 const HTTP404 = `
 HTTP/1.0 404 File not found
@@ -17,17 +17,6 @@ class Stats  {
 
   constructor(){
     this.db = {}
-  }
-
-  getEndPoint(http_block) {
-    let str = http_block.split('\n')[0]
-
-    str = str.split(' ')
-
-    let HTTPMethod   = str[0].trim() // [ GET ] /home HTTP1.1..
-    let HTTPResource = str[1].trim() // GET [ /home ] HTTP1.1..
-
-    return { HTTPMethod, HTTPResource }
   }
 
   new_entry(){
@@ -49,12 +38,14 @@ class Stats  {
     entry.avg =  Math.round((this.end / entry.hit) * 100) / 100 + 'ms' // truncating
   }
 
-  read(httpHeader){
-    let head = httpHeader.toString()
-    let RequestComponents = this.getEndPoint(head)
+  readResponse(response){
+    this.response = response 
+  }
 
-    this.method   = RequestComponents.HTTPMethod
-    this.endpoint = RequestComponents.HTTPResource
+  readRequest(header){
+    
+    //this.method   = RequestComponents.HTTPMethod
+    //this.endpoint = RequestComponents.HTTPResource
   }
 
   start_profile(){
@@ -77,20 +68,32 @@ let stats = new Stats()
  }, 5000)
 
 function handleConnection(server) {
-  let service = new Service({port: process.env['PORT'] || 8087})
+  let tport = process.env['TARGET_PORT'] || 8087
+  console.log(`Target port: ${tport}`)
+  let service = new HTTPService({port: tport })
+
 /*
  service.on('service:response:200', response => server.respond(response) )
-  service.on('service:response:404', response => server.respond([HTTP404]) ) */
-
-  server.on('server:traffic', incomingData => stats.read(incomingData))
-  server.on('server:traffic', incomingData => stats.start_profile())
-  service.on('service:response:all', (status, data) => stats.end_profile())
+  server.on('server:traffic', data => stats.start_profile())
   service.on('service:response:all', (status, data) => stats.new_entry())
+  service.on('service:response:all', (status, data) => stats.end_profile())
+  service.on('service:response:all', (status, data) => console.log('service has responded !!'))
 
-  server.on('server:traffic', incomingData => service.send(incomingData))
+  server.on('server:traffic', data => service.send(data))
   service.on('service:response:200', response => server.respond(response) )
   service.on('service:response:404', response => server.respond([HTTP404]) )
+  
+  service.on('service:response:404', response => server.respond([HTTP404]) ) */
+
+  server.on('service:http:all', (header, data) => stats.readResponse(header,data))
+  service.on('service:http:404', (header, response) => server.respond(HTTP404) ) 
+
+  server.on('http:traffic', data => stats.readRequest()  )
+  server.on('http:traffic', data => service.send(data)   )
+  service.on('service:read',  data => server.send(data) )
 }
 
-new Server({port: 8080, handler: handleConnection})
-console.log('Listening for request in 8080!!')
+
+let port = process.env['PORT'] || 8080
+new HTTPServer({port, handler: handleConnection})
+console.log(`Listening for request in ${port}!!`)
