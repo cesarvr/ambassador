@@ -10,7 +10,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "cordova-pdf-generator": "^2.0.4",
-    "node-ambassador": "^1.0.2"
+    "node-ambassador": "^1.0.14"
   }
 }

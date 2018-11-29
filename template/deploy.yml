@@ -1,0 +1,23 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: image-server-deployment
+  labels:
+    app: my-pod
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-pod
+  template:
+    metadata:
+      labels:
+        app: my-pod
+    spec:
+      containers:
+      - name: web
+        image:  172.30.1.1:5000/hello/web
+        command: ['sh', '-c', 'cd static && python -m http.server 8087']
+      - name: proxy
+        image: busybox
+        command: ['sh', '-c', 'echo Hello World 2 && sleep 3600']

@@ -1,5 +1,3 @@
-let { HTTPService, HTTPServer } =  require('node-ambassador')
-//let { HTTPService, HTTPServer } =  require('../ambassador')
 
 const HTTP404 = `
 HTTP/1.0 404 File not found
@@ -13,49 +11,48 @@ Connection: close
   <img src="https://www.wykop.pl/cdn/c3201142/comment_E6icBQJrg2RCWMVsTm4mA3XdC9yQKIjM.gif">
 </body>`
 
-class Stats  {
+
+class Stats {
 
   constructor(){
     this.db = {}
   }
 
-  new_entry(){
-    let key = this.endpoint
-    let entry = undefined
-
-    // if the entry doesn't exist, instantiate a new object
-    this.db[key]      =  this.db[key] || {}
-
-    entry = this.db[key] // we retrieve the object by reference.
-    entry.hit  = entry.hit || 0
-    entry.avg  = entry.avg || 0
-    entry.total = entry.total || 0
-    entry.history = entry.history || []
-
-    entry.hit += 1
-    entry.total += this.end
-    entry.history.push({time: this.end + 'ms', method:this.method, response: this.response })
-    entry.avg =  Math.round((this.end / entry.hit) * 100) / 100 + 'ms' // truncating
+  isFile(endpoint) {
+    const file_regexp = /([a-zA-Z0-9\s_\\.\-\(\):])+(.jpg|.doc|.pdf|.zip|.docx|.pdf|.gif|.png|.ico)$/
+    return endpoint.search(file_regexp) !== -1
   }
 
-  readResponse(response){
-    this.response = response 
+  new(){
+    let URL = this.endpoint
+    this.db[URL] = this.db[URL] || {}
+
+    this.db[URL] = {
+                    started: this.start,
+                    time: this.end + 'ms',
+                    response: this.response,
+                    file: this.isFile(URL)
+   }
+  }
+
+  readResponse(response) {
+    this.response = response
     return this
   }
 
-  readRequest(header){
+  readRequest(header) {
     this.method   = header.HTTPMethod
     this.endpoint = header.HTTPResource
 
     return this
   }
 
-  start_profile(){
+  startProfile() {
     this.start = new Date().getTime()
     return this
   }
 
-  end_profile() {
+  endProfile() {
     this.end =  new Date().getTime() - this.start
     return this
   }
@@ -67,32 +64,53 @@ class Stats  {
 
 let stats = new Stats()
 
- setInterval(()=> {
-   console.log('logs -> \n ', JSON.stringify(stats.all))
- }, 5000)
+setInterval(()=> {
+  console.log('logs -> \n ', JSON.stringify(stats.all))
+}, 5000)
 
-function handleConnection(server) {
-  let tport = process.env['TARGET_PORT'] || 8087
-  console.log(`Target port: ${tport}`)
-  let service = new HTTPService({port: tport })
 
-  server.on('server:http:headers',   
-                          (header, data) => stats.readRequest(header)
-                                                 .start_profile() )
+let { Ambassador }  = require('node-ambassador')
+//let { Ambassador }  = require('../node-ambassador/')
 
-  service.on('service:http:headers', (header, data) => 
-                                            stats.readResponse(header,data)
-                                                 .end_profile()
-                                                 .new_entry() )
+const TARGET = process.env['TARGET_PORT'] || 8087
+const PORT   = process.env['PORT'] || 8080
 
-  service.on('service:http:404', (header, response) => server.respond(HTTP404) ) 
 
-  // Tunnel
-  server.on( 'server:read',  data => service.send(data)   )
-  service.on('service:read', data => server.send(data)    )
+function telemetry({service, server}) {
+    server.on('http:data',  (header) => stats.readRequest(header)
+                                             .startProfile())
+
+    service.on('http:data', (header, data) =>
+                                    stats.readResponse(header,data)
+                                         .endProfile()
+                                         .new() )
 }
 
+function override_404({service, server}) {
+  service.on('http:404', () => console.log('404 Detected!'))
+  service.on('http:404', () => server.respond(HTTP404))
+}
 
-let port = process.env['PORT'] || 8080
-new HTTPServer({port, handler: handleConnection})
-console.log(`Listening for request in ${port}!!`)
+new Ambassador({port: PORT, target: TARGET})
+      .tunnel({override_404, telemetry })
+
+console.log(`listening for request in ${PORT} and targeting ${TARGET}`)
+
+/*
+new Ambassador({port: 8080, target: 8087})
+          .tunnel({subscriber: ({response, request})=>{
+
+   response.listen((header) => {
+     if(header.status === '404')
+      response.override(HTTP404)
+   })
+
+  request.listen((header) => stats.readRequest(header)
+                                                 .startProfile())
+
+  response.listen((header, data) => stats.readResponse(header,data)
+                                         .endProfile()
+                                         .new() )
+
+}})
+*/
