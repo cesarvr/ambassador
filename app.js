@@ -23,7 +23,7 @@ class Stats {
     return endpoint.search(file_regexp) !== -1
   }
 
-  new(){
+  save(){
     let URL = this.endpoint
     this.db[URL] = this.db[URL] || {}
 
@@ -83,7 +83,7 @@ function telemetry({service, server}) {
     service.on('http:data', (header, data) =>
                                     stats.readResponse(header,data)
                                          .endProfile()
-                                         .new() )
+                                         .save() )
 }
 
 function override_404({service, server}) {
