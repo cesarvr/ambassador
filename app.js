@@ -24,7 +24,6 @@ class Stats {
     return endpoint.search(file_regexp) !== -1
   }
 
-<<<<<<< HEAD
   host() {
     return this.os.hostname()
   }
@@ -51,10 +50,7 @@ class Stats {
     return history
   }
 
-  new(){
-=======
   save(){
->>>>>>> 01ebd7a9e54fe549dea1c51fb8d80e567453e35c
     let URL = this.endpoint
     this.db[URL] = this.db[URL] || {}
 
@@ -110,18 +106,11 @@ const PORT   = process.env['PORT'] || 8080
 function telemetry({service, server}) {
   server.on('http:data',  (header) => stats.readRequest(header)
     .startProfile())
-
-<<<<<<< HEAD
+    
   service.on('http:data', (header, data) =>
-    stats.readResponse(header,data)
-    .endProfile()
-    .new() )
-=======
-    service.on('http:data', (header, data) =>
                                     stats.readResponse(header,data)
                                          .endProfile()
                                          .save() )
->>>>>>> 01ebd7a9e54fe549dea1c51fb8d80e567453e35c
 }
 
 function override_404({service, server}) {
