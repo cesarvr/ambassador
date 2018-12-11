@@ -16,11 +16,38 @@ class Stats {
 
   constructor(){
     this.db = {}
+    this.os = require('os')
   }
 
   isFile(endpoint) {
-    const file_regexp = /([a-zA-Z0-9\s_\\.\-\(\):])+(.jpg|.doc|.pdf|.zip|.docx|.pdf|.gif|.png|.ico)$/
+    const file_regexp = /\.[0-9a-z]+$/i
     return endpoint.search(file_regexp) !== -1
+  }
+
+  host() {
+    return this.os.hostname()
+  }
+
+  resources(){
+    return {
+      free_memory: this.os.freemem(),
+      total_memory: this.os.totalmem(),
+      cpus: this.os.cpus()
+    }
+  }
+
+  history(obj) {
+    let history = obj.history || []
+
+    history.push({
+      request: {endpoint: this.endpoint, method: this.method},
+      response: this.response,
+      time: this.end + 'ms',
+      started: this.start,
+      resource: this.resources()
+    })
+
+    return history
   }
 
   new(){
@@ -28,11 +55,11 @@ class Stats {
     this.db[URL] = this.db[URL] || {}
 
     this.db[URL] = {
-                    started: this.start,
-                    time: this.end + 'ms',
-                    response: this.response,
-                    file: this.isFile(URL)
-   }
+      history: this.history(this.db[URL]),
+      file: this.isFile(URL),
+      pod: this.host()
+    }
+
   }
 
   readResponse(response) {
@@ -77,13 +104,13 @@ const PORT   = process.env['PORT'] || 8080
 
 
 function telemetry({service, server}) {
-    server.on('http:data',  (header) => stats.readRequest(header)
-                                             .startProfile())
+  server.on('http:data',  (header) => stats.readRequest(header)
+    .startProfile())
 
-    service.on('http:data', (header, data) =>
-                                    stats.readResponse(header,data)
-                                         .endProfile()
-                                         .new() )
+  service.on('http:data', (header, data) =>
+    stats.readResponse(header,data)
+    .endProfile()
+    .new() )
 }
 
 function override_404({service, server}) {
@@ -92,25 +119,6 @@ function override_404({service, server}) {
 }
 
 new Ambassador({port: PORT, target: TARGET})
-      .tunnel({override_404, telemetry })
+  .tunnel({override_404, telemetry })
 
 console.log(`listening for request in ${PORT} and targeting ${TARGET}`)
-
-/*
-new Ambassador({port: 8080, target: 8087})
-          .tunnel({subscriber: ({response, request})=>{
-
-   response.listen((header) => {
-     if(header.status === '404')
-      response.override(HTTP404)
-   })
-
-  request.listen((header) => stats.readRequest(header)
-                                                 .startProfile())
-
-  response.listen((header, data) => stats.readResponse(header,data)
-                                         .endProfile()
-                                         .new() )
-
-}})
-*/
